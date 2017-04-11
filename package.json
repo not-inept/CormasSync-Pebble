@@ -1,17 +1,25 @@
 {
     "author": "Notinept",
-    "dependencies": {},
+    "dependencies": {
+        "pebble-clay": "^1.0.3"
+    },
     "keywords": [],
     "name": "cormas",
     "pebble": {
         "capabilities": [
             "location",
-            "configurable",
             "health"
         ],
         "displayName": "Cormas Sync",
         "enableMultiJS": true,
-        "messageKeys": [],
+        "messageKeys": [
+            "myName",
+            "theirName",
+            "myStatus",
+            "mySteps",
+            "theirSteps",
+            "theirStatus"
+        ],
         "projectType": "native",
         "resources": {
             "media": []
