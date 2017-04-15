@@ -35,8 +35,9 @@ Pebble.addEventListener('appmessage',
       status = dict.myStatus;
     }
     console.log(steps);
-    var settings = localStorage.getItem("clay-settings");
+    var settings = JSON.parse(localStorage.getItem("clay-settings"));
     if (settings !== null) {
+      console.log(JSON.stringify(settings));
       var xhttp = new XMLHttpRequest();
       xhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
@@ -49,7 +50,30 @@ Pebble.addEventListener('appmessage',
       var xhttp2 = new XMLHttpRequest();
       xhttp2.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-          console.log(this.responseText);
+          console.log('their:'+this.responseText);
+          var res = JSON.parse(this.responseText);
+          var data = {
+            "theirSteps" : "0",
+            "theirStatus" : "unknown"
+          };
+          if (res.steps !== null && res.steps !== null) {
+            data = {
+              "theirSteps" : res.steps,
+              "theirStatus" : res.healt
+            };
+          } else {
+            console.log('Uh oh could not parse');
+          }
+
+          Pebble.sendAppMessage(
+            data,
+            function () {
+              // on success
+            },
+            function () {
+              
+            }
+          );
         }
       };
       xhttp2.open("GET", "http://notinept.me:5858/cormas/" + settings.theirName.toLowerCase(), true);
@@ -60,3 +84,4 @@ Pebble.addEventListener('appmessage',
   }
   
 );
+// http://api.openweathermap.org/data/2.5/weather?units=imperial&zip=10011,us&appid=efa2b98bca84ec2dc2d125ea973ebe82

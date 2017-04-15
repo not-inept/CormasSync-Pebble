@@ -18,11 +18,19 @@
             "myStatus",
             "mySteps",
             "theirSteps",
-            "theirStatus"
+            "theirStatus",
+            "myZipcode"
         ],
         "projectType": "native",
         "resources": {
-            "media": []
+            "media": [
+                {
+                    "file": "data/Pebble_50x50_Sunny_day.pdc",
+                    "name": "WEATHER_SUNNY_DAY",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                }
+            ]
         },
         "sdkVersion": "3",
         "targetPlatforms": [

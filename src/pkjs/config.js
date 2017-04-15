@@ -25,6 +25,16 @@ module.exports = [  {
     "limit": 10
   }
 },
+{
+  "type": "input",
+  "messageKey": "myZipcode",
+  "defaultValue": "",
+  "label": "Zipcode",
+  "attributes": {
+    "placeholder": "eg: 45245",
+    "limit": 5
+  }
+},
         {
     "type": "submit",
     "defaultValue": "Save Settings"
