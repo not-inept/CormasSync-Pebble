@@ -8,6 +8,7 @@
     "pebble": {
         "capabilities": [
             "location",
+            "configurable",
             "health"
         ],
         "displayName": "Cormas Sync",
