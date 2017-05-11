@@ -11,13 +11,30 @@ static void update_display();
 #define MY_NAME_KEY 5
 #define THEIR_NAME_KEY 6
 #define THEIR_STEPS_KEY 7
+#define W_CODE_KEY 8
+#define W_DESCRIPTION_KEY 9
+#define W_ICON_KEY 10
+#define W_TEMP_MIN_KEY 11
+#define W_TEMP_MAX_KEY 12
+#define W_SUNRISE 13
+#define W_SUNSET 14
+#define TIME_SINCE_WEATHER 15
 
 // Define the settings struct
 typedef struct Settings {
   char* myName;
   char* theirName;
   char* theirSteps;
+  char* weatherCode;
+  char* weatherDescription;
+  char* weatherIconCode;
+  char* weatherTempMin;
+  char* weatherTempMax;
+  char* weatherSunrise;
+  char* weatherSunset;
+  int timeSinceWeather;
 } Settings;
+
 // Create an instance of the struct
 static Settings settings;
 // Initialize the default settings
@@ -25,6 +42,14 @@ static void default_settings() {
   settings.myName = "myNameXXXX";
   settings.theirName = "theirNameX";
   settings.theirSteps = "000000";
+  settings.weatherCode = "000000";
+  settings.weatherDescription = "no weather data";
+  settings.weatherIconCode = "NO CODE PRESENT";
+  settings.weatherTempMin = "data data";
+  settings.weatherTempMax = "data data";
+  settings.weatherSunrise = "data data";
+  settings.weatherSunset = "data data";
+  settings.timeSinceWeather = 60;
 }
 // Read settings from persistent storage
 static void load_settings() {
@@ -42,15 +67,42 @@ static void load_settings() {
   char theirStepsBuffer[32];
   persist_read_string(THEIR_STEPS_KEY, theirStepsBuffer, sizeof(theirStepsBuffer));
   
+  char wCodeBuffer[32];
+  persist_read_string(W_CODE_KEY, wCodeBuffer, sizeof(wCodeBuffer));
+  
+  char wDescriptionBuffer[80];
+  persist_read_string(W_DESCRIPTION_KEY, wDescriptionBuffer, sizeof(wDescriptionBuffer));
+  
+  char wIconCodeBuffer[32];
+  persist_read_string(W_ICON_KEY, wIconCodeBuffer, sizeof(wIconCodeBuffer));
+  
+  char wTempMinBuffer[32];
+  persist_read_string(W_TEMP_MIN_KEY, wTempMinBuffer, sizeof(wTempMinBuffer));
+  
+  char wTempMaxBuffer[32];
+  persist_read_string(W_TEMP_MAX_KEY, wTempMaxBuffer, sizeof(wTempMaxBuffer));
+ 
+  char wSunrise[32];
+  persist_read_string(W_SUNRISE, wSunrise, sizeof(wSunrise));
+   
+  char wSunset[32];
+  persist_read_string(W_SUNSET, wSunset, sizeof(wSunset));
+  
+  settings.timeSinceWeather = persist_read_int(TIME_SINCE_WEATHER);
+  APP_LOG(APP_LOG_LEVEL_INFO, "Time since weather:");
+  APP_LOG(APP_LOG_LEVEL_INFO, "%d", (int) settings.timeSinceWeather);
+  
   strcpy(settings.myName, myNameBuffer);
   strcpy(settings.theirName, theirNameBuffer);
   strcpy(settings.theirSteps, theirStepsBuffer);
   
-  APP_LOG(APP_LOG_LEVEL_INFO, settings.myName);
-  APP_LOG(APP_LOG_LEVEL_INFO, settings.theirName);
-  APP_LOG(APP_LOG_LEVEL_INFO, settings.theirSteps);
-
-
+  strcpy(settings.weatherCode, wCodeBuffer);
+  strcpy(settings.weatherDescription, wDescriptionBuffer);
+  strcpy(settings.weatherIconCode, wIconCodeBuffer);
+  strcpy(settings.weatherTempMin, wTempMinBuffer);
+  strcpy(settings.weatherTempMax, wTempMaxBuffer);
+  strcpy(settings.weatherSunrise, wSunrise);
+  strcpy(settings.weatherSunset, wSunset);
 }
 // Save the settings to persistent storage
 static void save_settings() {
@@ -62,6 +114,15 @@ static void save_settings() {
   persist_write_string(MY_NAME_KEY, settings.myName);
   persist_write_string(THEIR_NAME_KEY, settings.theirName);
   persist_write_string(THEIR_STEPS_KEY, settings.theirSteps);  // Update the display based on new settings
+  
+  persist_write_string(W_CODE_KEY, settings.weatherCode);
+  persist_write_string(W_DESCRIPTION_KEY, settings.weatherDescription);
+  persist_write_string(W_ICON_KEY, settings.weatherIconCode);
+  persist_write_string(W_TEMP_MIN_KEY, settings.weatherTempMin);
+  persist_write_string(W_TEMP_MAX_KEY, settings.weatherTempMax );
+  persist_write_string(W_SUNRISE, settings.weatherSunrise);
+  persist_write_string(W_SUNSET, settings.weatherSunset);
+  persist_write_int(TIME_SINCE_WEATHER, settings.timeSinceWeather);
   
   update_display();
 }
@@ -119,9 +180,11 @@ static TextLayer *s_their_name_layer;
 
 static Layer *s_canvas_layer;
 
-static GDrawCommandImage *s_weather_image;
+static GDrawCommandImage *weather_image;
+
 static Layer *weather_canvas_layer;
-static TextLayer *weather_text_layer;
+static TextLayer *weather_desc_layer;
+static TextLayer *weather_temp_layer;
 
 static void weather_update_proc(Layer *layer, GContext *ctx) {
   // Set the origin offset from the context for drawing the image
@@ -130,10 +193,77 @@ static void weather_update_proc(Layer *layer, GContext *ctx) {
   GPoint origin = GPoint(bounds.size.w * .11, bounds.size.h*.1);
 
   // Draw the GDrawCommandImage to the GContext
-  gdraw_command_image_draw(ctx, s_weather_image, origin);
+  gdraw_command_image_draw(ctx, weather_image, origin);
+}
+
+static void request_weather_update() {
+  // Iterator variable, keeps the state of the creation serialization process:
+  //https://openweathermap.org/weather-conditions
+  DictionaryIterator *iter;
+  AppMessageResult result = app_message_outbox_begin(&iter);
+  if(result == APP_MSG_OK) {
+    // Construct the message
+   APP_LOG(APP_LOG_LEVEL_INFO, "Constructing message.");
+      // Write the Data:
+    dict_write_cstring(iter, MESSAGE_KEY_getWeather, settings.myName);
+    // Send this message
+    result = app_message_outbox_send();
+    
+    // Check the result
+    if(result != APP_MSG_OK) {
+      APP_LOG(APP_LOG_LEVEL_ERROR, "Error sending the outbox: %d", (int)result);
+    }
+  } else {
+    // The outbox cannot be used right now
+    settings.timeSinceWeather = 60;
+    APP_LOG(APP_LOG_LEVEL_ERROR, "Error preparing the outbox: %d", (int)result);
+  }
+}
+
+static uint32_t currentWeatherResource() {
+  uint32_t current_weather = RESOURCE_ID_W_CLEAR_DAY;
+  if (strcmp(settings.weatherIconCode, "01d") == 0) {
+  	current_weather = RESOURCE_ID_W_CLEAR_DAY;
+  } else if (strcmp(settings.weatherIconCode, "02d") == 0) {
+  	current_weather = RESOURCE_ID_W_PARTLY_CLOUDY_DAY;
+  } else if (strcmp(settings.weatherIconCode, "03d") == 0) {
+  	current_weather = RESOURCE_ID_W_PARTLY_CLOUDY_DAY;
+  } else if (strcmp(settings.weatherIconCode, "04d") == 0) {
+  	current_weather = RESOURCE_ID_W_CLOUDY;
+  } else if (strcmp(settings.weatherIconCode, "09d") == 0) {
+  	current_weather = RESOURCE_ID_W_RAIN;
+  } else if (strcmp(settings.weatherIconCode, "10d") == 0) {
+  	current_weather = RESOURCE_ID_W_RAIN;
+  } else if (strcmp(settings.weatherIconCode, "11d") == 0) {
+  	current_weather = RESOURCE_ID_W_RAIN;
+  } else if (strcmp(settings.weatherIconCode, "13d") == 0) {
+  	current_weather = RESOURCE_ID_W_SNOW;
+  } else if (strcmp(settings.weatherIconCode, "50d") == 0) {
+  	current_weather = RESOURCE_ID_W_WIND;
+  } else if (strcmp(settings.weatherIconCode, "01n") == 0) {
+  	current_weather = RESOURCE_ID_W_CLEAR_NIGHT;
+  } else if (strcmp(settings.weatherIconCode, "02n") == 0) {
+  	current_weather = RESOURCE_ID_W_PARTLY_CLOUDY_NIGHT;
+  } else if (strcmp(settings.weatherIconCode, "03n") == 0) {
+  	current_weather = RESOURCE_ID_W_PARTLY_CLOUDY_NIGHT;
+  } else if (strcmp(settings.weatherIconCode, "04n") == 0) {
+  	current_weather = RESOURCE_ID_W_CLOUDY;
+  } else if (strcmp(settings.weatherIconCode, "09n") == 0) {
+  	current_weather = RESOURCE_ID_W_RAIN;
+  } else if (strcmp(settings.weatherIconCode, "10n") == 0) {
+  	current_weather = RESOURCE_ID_W_RAIN;
+  } else if (strcmp(settings.weatherIconCode, "11n") == 0) {
+  	current_weather = RESOURCE_ID_W_RAIN;
+  } else if (strcmp(settings.weatherIconCode, "13n") == 0) {
+  	current_weather = RESOURCE_ID_W_SNOW;
+  } else if (strcmp(settings.weatherIconCode, "50n") == 0) {
+  	current_weather = RESOURCE_ID_W_WIND;
+  }
+  return current_weather;
 }
 
 static void update_display() {
+  APP_LOG(APP_LOG_LEVEL_INFO, "Updating Display");
   // Get a tm structure
   time_t temp = time(NULL);
   struct tm *tick_time = localtime(&temp);
@@ -155,12 +285,25 @@ static void update_display() {
   
   static char my_name[30];
   strcpy(my_name, settings.myName);
+  
   static char their_name[30];
   strcpy(their_name, settings.theirName);
   text_layer_set_text(s_my_name_layer, my_name);
   text_layer_set_text(s_their_name_layer, their_name);
+  uint32_t current_weather = currentWeatherResource();
+  weather_image = gdraw_command_image_create_with_resource(current_weather);
   
-  s_weather_image = gdraw_command_image_create_with_resource(RESOURCE_ID_WEATHER_SUNNY_DAY);
+  static char w_desc[30];
+  strcpy(w_desc, settings.weatherDescription);
+  
+  static char weather_temp_buff[32];
+  snprintf(weather_temp_buff, sizeof weather_temp_buff, "%s/%s", settings.weatherTempMin, settings.weatherTempMax);
+  APP_LOG(APP_LOG_LEVEL_INFO, settings.weatherTempMin);
+  APP_LOG(APP_LOG_LEVEL_INFO, settings.weatherTempMax);
+
+  text_layer_set_text(weather_temp_layer, weather_temp_buff);
+  
+  
 }
 
 static void canvas_update_proc(Layer *layer, GContext *ctx) {
@@ -257,6 +400,26 @@ static void main_window_load(Window *window) {
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_their_name_layer)); 
   
+  // Weather text layers
+  weather_desc_layer = text_layer_create(
+      GRect(bounds.size.w * .01, bounds.size.h*.40, bounds.size.w*.56, bounds.size.h*.15));
+  text_layer_set_background_color(weather_desc_layer, GColorClear);
+  text_layer_set_text_color(weather_desc_layer, GColorBlack);
+  text_layer_set_text(weather_desc_layer, "clear sky");
+  text_layer_set_font(weather_desc_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  text_layer_set_text_alignment(weather_desc_layer, GTextAlignmentCenter);
+  // Add it as a child layer to the Window's root layer
+  layer_add_child(window_layer, text_layer_get_layer(weather_desc_layer));
+  
+  weather_temp_layer = text_layer_create(
+      GRect(bounds.size.w * .01, bounds.size.h*.52, bounds.size.w*.56, bounds.size.h*.15));
+  text_layer_set_background_color(weather_temp_layer, GColorClear);
+  text_layer_set_text_color(weather_temp_layer, GColorBlack);
+  text_layer_set_text(weather_temp_layer, "50.0/50.0");
+  text_layer_set_font(weather_temp_layer, fonts_get_system_font(FONT_KEY_GOTHIC_18_BOLD));
+  text_layer_set_text_alignment(weather_temp_layer, GTextAlignmentCenter);
+  // Add it as a child layer to the Window's root layer
+  layer_add_child(window_layer, text_layer_get_layer(weather_temp_layer));
   
   // Create the canvas Layer
   weather_canvas_layer = layer_create(GRect(0, 0, bounds.size.w, bounds.size.h));
@@ -279,13 +442,19 @@ static void main_window_unload(Window *window) {
   layer_destroy(weather_canvas_layer);
 
   // Destroy the PDC image
-  gdraw_command_image_destroy(s_weather_image);
+  gdraw_command_image_destroy(weather_image);
 }
 
 /********************/
 /* Service Handlers */
 /********************/
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
+  settings.timeSinceWeather += 1;
+  APP_LOG(APP_LOG_LEVEL_INFO, "%d", settings.timeSinceWeather);
+  if (settings.timeSinceWeather >= 60) {
+    // settings.timeSinceWeather = 1;
+    request_weather_update();
+  }
   update_display();
 }
 
@@ -297,7 +466,7 @@ static void send_health_update(char* event, HealthValue steps) {
   AppMessageResult result = app_message_outbox_begin(&iter);
   if(result == APP_MSG_OK) {
     // Construct the message
-   APP_LOG(APP_LOG_LEVEL_INFO, "Constructing message.");
+     APP_LOG(APP_LOG_LEVEL_INFO, "Constructing message.");
       // Write the Data:
     dict_write_uint32(iter, MESSAGE_KEY_mySteps, (uint32_t) steps);
     // Write the CString:
@@ -379,6 +548,70 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
     APP_LOG(APP_LOG_LEVEL_INFO, settings.theirSteps);
     needs_update = 1;
   }
+  
+  Tuple *weatherCode_t = dict_find(iter, MESSAGE_KEY_weatherCode);
+  if (weatherCode_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (code) %s", weatherCode_t->value->cstring);
+    strncpy(settings.weatherCode, weatherCode_t->value->cstring, sizeof(settings.weatherCode) - 1);
+    settings.weatherCode[sizeof(settings.weatherCode) - 1] = '\0';
+    needs_update = 1;
+  }
+  
+  Tuple *weatherTempMin_t = dict_find(iter, MESSAGE_KEY_weatherTempMin);
+  if (weatherTempMin_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (temp min) %s", weatherTempMin_t->value->cstring);
+    strncpy(settings.weatherTempMin, weatherTempMin_t->value->cstring, sizeof(settings.weatherTempMin) - 1);
+    settings.weatherTempMin[sizeof(settings.weatherTempMin) - 1] = '\0';
+    needs_update = 1;
+  }
+
+  Tuple *weatherTempMax_t = dict_find(iter, MESSAGE_KEY_weatherTempMax);
+  if (weatherTempMax_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (temp max) %s", weatherTempMax_t->value->cstring);
+    strncpy(settings.weatherTempMax, weatherTempMax_t->value->cstring, sizeof(settings.weatherTempMax) - 1);
+    settings.weatherTempMax[sizeof(settings.weatherTempMax) - 1] = '\0';
+
+        needs_update = 1;
+
+  }
+  
+    Tuple *weatherDescription_t = dict_find(iter, MESSAGE_KEY_weatherDescription);
+  if (weatherDescription_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (desc) %s", weatherDescription_t->value->cstring);
+    strncpy(settings.weatherDescription, weatherDescription_t->value->cstring, sizeof(settings.weatherDescription) - 1);
+    settings.weatherDescription[sizeof(settings.weatherDescription) - 1] = '\0';
+    needs_update = 1;
+
+  }
+  
+      Tuple *weatherSunrise_t = dict_find(iter, MESSAGE_KEY_weatherSunrise);
+  if (weatherSunrise_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (sunrise) %s", weatherSunrise_t->value->cstring);
+    strncpy(settings.weatherSunrise, weatherSunrise_t->value->cstring, sizeof(settings.weatherSunrise) - 1);
+    settings.weatherSunrise[sizeof(settings.weatherSunrise) - 1] = '\0';
+    needs_update = 1;
+
+  }
+  
+      Tuple *weatherSunset_t = dict_find(iter, MESSAGE_KEY_weatherSunset);
+  if (weatherSunset_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (sunset) %s", weatherSunset_t->value->cstring);
+    strncpy(settings.weatherSunset, weatherSunset_t->value->cstring, sizeof(settings.weatherSunset) - 1);
+    settings.weatherSunset[sizeof(settings.weatherSunset) - 1] = '\0';
+        needs_update = 1;
+
+  }  
+
+        Tuple *weatherIconCode_t = dict_find(iter, MESSAGE_KEY_weatherIconCode);
+  if (weatherIconCode_t) {
+    APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (iconCode) %s", weatherIconCode_t->value->cstring);
+    strncpy(settings.weatherIconCode, weatherIconCode_t->value->cstring, sizeof(settings.weatherIconCode) - 1);
+    settings.weatherIconCode[sizeof(settings.weatherIconCode) - 1] = '\0';
+        needs_update = 1;
+
+  }
+  
+  
   if (needs_update) {
     save_settings();
     layer_mark_dirty(s_canvas_layer);
@@ -388,12 +621,13 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
 }
 
 static void init() {
-  load_settings();
-
+  
   // Listen for AppMessages
   app_message_register_inbox_received(inbox_received_handler);
   app_message_open(128, 128);
   
+  load_settings();
+  settings.timeSinceWeather = 60;
   // Create main Window element and assign to pointer
   s_main_window = window_create();
 
@@ -417,6 +651,8 @@ static void init() {
     .will_focus = will_focus_handler,
     .did_focus = did_focus_handler
   });
+  save_settings();
+
 }
 
 static void deinit() {

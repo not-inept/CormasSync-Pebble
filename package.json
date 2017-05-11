@@ -19,14 +19,75 @@
             "mySteps",
             "theirSteps",
             "theirStatus",
-            "myZipcode"
+            "weatherDescription",
+            "weatherIconCode",
+            "weatherTempMin",
+            "weatherTempMax",
+            "weatherCode",
+            "getWeather",
+            "weatherSunrise",
+            "weatherSunset"
         ],
         "projectType": "native",
         "resources": {
             "media": [
                 {
-                    "file": "data/Pebble_50x50_Sunny_day.pdc",
-                    "name": "WEATHER_SUNNY_DAY",
+                    "file": "data/W_WIND",
+                    "name": "W_WIND",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_SNOW",
+                    "name": "W_SNOW",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_SLEET",
+                    "name": "W_SLEET",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_RAIN",
+                    "name": "W_RAIN",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_PARTLY_CLOUDY_NIGHT",
+                    "name": "W_PARTLY_CLOUDY_NIGHT",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_PARTLY_CLOUDY_DAY",
+                    "name": "W_PARTLY_CLOUDY_DAY",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_FOG",
+                    "name": "W_FOG",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_CLOUDY",
+                    "name": "W_CLOUDY",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_CLEAR_NIGHT",
+                    "name": "W_CLEAR_NIGHT",
+                    "targetPlatforms": null,
+                    "type": "raw"
+                },
+                {
+                    "file": "data/W_CLEAR_DAY",
+                    "name": "W_CLEAR_DAY",
                     "targetPlatforms": null,
                     "type": "raw"
                 }
