@@ -22,16 +22,16 @@ static void update_display();
 
 // Define the settings struct
 typedef struct Settings {
-  char* myName;
-  char* theirName;
-  char* theirSteps;
-  char* weatherCode;
-  char* weatherDescription;
-  char* weatherIconCode;
-  char* weatherTempMin;
-  char* weatherTempMax;
-  char* weatherSunrise;
-  char* weatherSunset;
+  char myName[32];
+  char theirName[32];
+  char theirSteps[16];
+  char weatherCode[16];
+  char weatherDescription[128];
+  char weatherIconCode[16];
+  char weatherTempMin[16];
+  char weatherTempMax[16];
+  char weatherSunrise[16];
+  char weatherSunset[16];
   int timeSinceWeather;
 } Settings;
 
@@ -39,16 +39,16 @@ typedef struct Settings {
 static Settings settings;
 // Initialize the default settings
 static void default_settings() {
-  settings.myName = "myNameXXXX";
-  settings.theirName = "theirNameX";
-  settings.theirSteps = "000000";
-  settings.weatherCode = "000000";
-  settings.weatherDescription = "no weather data";
-  settings.weatherIconCode = "NO CODE PRESENT";
-  settings.weatherTempMin = "data data";
-  settings.weatherTempMax = "data data";
-  settings.weatherSunrise = "data data";
-  settings.weatherSunset = "data data";
+  strcpy(settings.myName, "myNameXXXX");
+  strcpy(settings.theirName, "theirNameX");
+  strcpy(settings.theirSteps, "000000");
+  strcpy(settings.weatherCode, "000000");
+  strcpy(settings.weatherDescription, "no weather data");
+  strcpy(settings.weatherIconCode, "NO CODE PRESENT");
+  strcpy(settings.weatherTempMin, "data data");
+  strcpy(settings.weatherTempMax, "data data");
+  strcpy(settings.weatherSunrise, "data data");
+  strcpy(settings.weatherSunset, "data data");
   settings.timeSinceWeather = 60;
 }
 // Read settings from persistent storage
@@ -537,32 +537,26 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   
   Tuple *myName_t = dict_find(iter, MESSAGE_KEY_myName);
   if(myName_t) {  
-    static char myName[30];
-    strncpy(myName, myName_t->value->cstring, 28);
-    myName[28] = '\0'; 
+    strncpy(settings.myName, myName_t->value->cstring, 31);
+    settings.myName[31] = '\0'; 
     APP_LOG(APP_LOG_LEVEL_INFO, "MY NAME");
-    settings.myName = myName;
     APP_LOG(APP_LOG_LEVEL_INFO, settings.myName);
     needs_update = 1;
   }
   
   Tuple *theirName_t = dict_find(iter, MESSAGE_KEY_theirName);
   if(theirName_t) {
-    static char theirName[30];
-    strncpy(theirName, theirName_t->value->cstring, 28);
-    theirName[28] = '\0';
+    strncpy(settings.theirName, theirName_t->value->cstring, 31);
+    settings.theirName[31] = '\0';
     APP_LOG(APP_LOG_LEVEL_INFO, "THEIR NAME");
-    settings.theirName = theirName;
     APP_LOG(APP_LOG_LEVEL_INFO, settings.theirName);
     needs_update = 1;
   }
   
   Tuple *theirSteps_t = dict_find(iter, MESSAGE_KEY_theirSteps);
   if(theirSteps_t) {
-    static char theirSteps[30];
-    strncpy(theirSteps, theirSteps_t->value->cstring, 28);
-    theirSteps[28] = '\0';
-    settings.theirSteps = theirSteps;
+    strncpy(settings.theirSteps, theirSteps_t->value->cstring, 15);
+    settings.theirSteps[15] = '\0';
     APP_LOG(APP_LOG_LEVEL_INFO, "THEIR STEPS");
     APP_LOG(APP_LOG_LEVEL_INFO, settings.theirSteps);
     needs_update = 1;
@@ -570,21 +564,17 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   
   Tuple *weatherCode_t = dict_find(iter, MESSAGE_KEY_weatherCode);
   if (weatherCode_t) {
-    static char weatherCode[30];
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (code) %s", weatherCode_t->value->cstring);
-    strncpy(weatherCode, weatherCode_t->value->cstring, 28);
-    weatherCode[28] = '\0';
-    settings.weatherCode = weatherCode;
+    strncpy(settings.weatherCode, weatherCode_t->value->cstring, 15);
+    settings.weatherCode[15] = '\0';
     needs_update = 1;
   }
   
   Tuple *weatherTempMin_t = dict_find(iter, MESSAGE_KEY_weatherTempMin);
   if (weatherTempMin_t) {
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (temp min) %s", weatherTempMin_t->value->cstring);
-    static char weatherTempMin[30];
-    strncpy(weatherTempMin, weatherTempMin_t->value->cstring, 28);
-    weatherTempMin[28] = '\0';
-    settings.weatherTempMin = weatherTempMin;
+    strncpy(settings.weatherTempMin, weatherTempMin_t->value->cstring, 15);
+    settings.weatherTempMin[15] = '\0';
     APP_LOG(APP_LOG_LEVEL_INFO, settings.weatherTempMin);
 
     needs_update = 1;
@@ -592,12 +582,9 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
 
   Tuple *weatherTempMax_t = dict_find(iter, MESSAGE_KEY_weatherTempMax);
   if (weatherTempMax_t) {
-        static char weatherTempMax[30];
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (temp max) %s", weatherTempMax_t->value->cstring);
-    strncpy(weatherTempMax, weatherTempMax_t->value->cstring, 28);
-    settings.weatherTempMax[28] = '\0';
-    settings.weatherTempMax = weatherTempMax;
-
+    strncpy(settings.weatherTempMax, weatherTempMax_t->value->cstring, 15);
+    settings.weatherTempMax[15] = '\0';
         needs_update = 1;
 
   }
@@ -605,49 +592,41 @@ static void inbox_received_handler(DictionaryIterator *iter, void *context) {
   
     Tuple *weatherDescription_t = dict_find(iter, MESSAGE_KEY_weatherDescription);
   if (weatherDescription_t) {
-            static char weatherDescription[74];
 
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (desc) %s", weatherDescription_t->value->cstring);
-    strncpy(weatherDescription, weatherDescription_t->value->cstring, 72);
-    weatherDescription[72] = '\0';
-    settings.weatherDescription = weatherDescription;
+    strncpy(settings.weatherDescription, weatherDescription_t->value->cstring, 127);
+    settings.weatherDescription[127] = '\0';
     needs_update = 1;
 
   }
 
       Tuple *weatherSunrise_t = dict_find(iter, MESSAGE_KEY_weatherSunrise);
   if (weatherSunrise_t) {
-            static char weatherSunrise[30];
 
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (sunrise) %s", weatherSunrise_t->value->cstring);
-    strncpy(weatherSunrise, weatherSunrise_t->value->cstring, sizeof(weatherSunrise) - 1);
-    weatherSunrise[sizeof(weatherSunrise) - 1] = '\0';
-    settings.weatherSunrise = weatherSunrise;
+    strncpy(settings.weatherSunrise, weatherSunrise_t->value->cstring, 15);
+    settings.weatherSunrise[15] = '\0';
     needs_update = 1;
 
   }
   
       Tuple *weatherSunset_t = dict_find(iter, MESSAGE_KEY_weatherSunset);
   if (weatherSunset_t) {
-    static char weatherSunset[30];
 
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (sunset) %s", weatherSunset_t->value->cstring);
-    strncpy(weatherSunset, weatherSunset_t->value->cstring, sizeof(weatherSunset) - 1);
-    weatherSunset[sizeof(weatherSunset) - 1] = '\0';
+    strncpy(settings.weatherSunset, weatherSunset_t->value->cstring, 15);
+    settings.weatherSunset[15] = '\0';
         needs_update = 1;
-    settings.weatherSunset = weatherSunset;
   } 
   APP_LOG(APP_LOG_LEVEL_INFO, settings.weatherTempMin);
 
         Tuple *weatherIconCode_t = dict_find(iter, MESSAGE_KEY_weatherIconCode);
   if (weatherIconCode_t) {
-    static char weatherIconCode[30];
     
     APP_LOG(APP_LOG_LEVEL_INFO, "GOT WEATHER DATA (iconCode) %s", weatherIconCode_t->value->cstring);
-    strncpy(weatherIconCode, weatherIconCode_t->value->cstring, 28);
-    weatherIconCode[28] = '\0';
+    strncpy(settings.weatherIconCode, weatherIconCode_t->value->cstring, 15);
+    settings.weatherIconCode[15] = '\0';
         needs_update = 1;
-        settings.weatherIconCode = weatherIconCode;
 
 
   }
